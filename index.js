@@ -225,7 +225,7 @@ for (const [tag, postIds] of Object.entries(tagPosts))
     if (tag != '') genPages(postIds, '包含标签 ' + tag + ' 的文章', page => getTagUrl(tag) + (page == 1 ? '' : page + '/'))
 
 for (const [date, postIds] of Object.entries(datePosts))
-    genPages(postIds, date.substr(0, 4) + ' 年 ' + date.substr(5, 7) + ' 月', page => '/' + date.replace('-', '/') + '/' + (page == 1 ? '' : page + '/'))
+    genPages(postIds, date.substr(0, 4) + ' 年 ' + date.substr(5, 7).replace(/^0/, '') + ' 月', page => '/' + date.replace('-', '/') + '/' + (page == 1 ? '' : page + '/'))
 
 const renderAssetsPath = path.join(blogRenderPath, '/assets/')
 if (!fs.existsSync(renderAssetsPath)) fs.mkdirSync(renderAssetsPath, { recursive: true })
