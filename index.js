@@ -108,6 +108,7 @@ const tagsUrls = config.tagsUrls || {}
 
 let posts = {}
 let tagPosts = { '': [] }
+let datePosts = {}
 let urlSet = {}
 
 fs.readdirSync(postsPath).sort((a, b) => b.localeCompare(a)).forEach(file => {
@@ -152,6 +153,10 @@ fs.readdirSync(postsPath).sort((a, b) => b.localeCompare(a)).forEach(file => {
         tagPosts[tag].push(filename)
     })
     tagPosts[''].push(filename)
+
+    const dateMonth = date.substr(0, 7)
+    if (typeof (datePosts[dateMonth]) == "undefined") datePosts[dateMonth] = []
+    datePosts[dateMonth].push(filename)
 
     console.assert(typeof (urlSet[url]) == "undefined", "posts can't have the same url")
     urlSet[url] = true
@@ -203,6 +208,7 @@ function genPages(postIds, title, urlCallback) {
             pageTemplate({
                 title: title,
                 body: postsTemplate({
+                    title: title,
                     posts: tmpPosts,
                     totalPages: totalPages,
                     curPage: i + 1,
@@ -217,6 +223,9 @@ function genPages(postIds, title, urlCallback) {
 genPages(tagPosts[''], '', page => page == 1 ? '/' : '/page/' + page + '/')
 for (const [tag, postIds] of Object.entries(tagPosts))
     if (tag != '') genPages(postIds, '包含标签 ' + tag + ' 的文章', page => getTagUrl(tag) + (page == 1 ? '' : page + '/'))
+
+for (const [date, postIds] of Object.entries(datePosts))
+    genPages(postIds, date.substr(0, 4) + ' 年 ' + date.substr(5, 7) + ' 月', page => '/' + date.replace('-', '/') + '/' + (page == 1 ? '' : page + '/'))
 
 const renderAssetsPath = path.join(blogRenderPath, '/assets/')
 if (!fs.existsSync(renderAssetsPath)) fs.mkdirSync(renderAssetsPath, { recursive: true })
