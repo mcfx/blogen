@@ -181,6 +181,8 @@ function getTagUrl(tag) {
 pageTemplate = ejs.compile(fs.readFileSync(path.join(templatesPath, 'page.ejs'), { encoding: 'utf-8' }))
 postTemplate = ejs.compile(fs.readFileSync(path.join(templatesPath, 'post.ejs'), { encoding: 'utf-8' }))
 postsTemplate = ejs.compile(fs.readFileSync(path.join(templatesPath, 'posts.ejs'), { encoding: 'utf-8' }))
+rssPostTemplate = ejs.compile(fs.readFileSync(path.join(templatesPath, 'rss-post.ejs'), { encoding: 'utf-8' }))
+rssTemplate = ejs.compile(fs.readFileSync(path.join(templatesPath, 'rss.ejs'), { encoding: 'utf-8' }))
 
 for (const [_, post] of Object.entries(posts)) {
     const pt = path.join(blogRenderPath, post.url)
@@ -226,6 +228,14 @@ for (const [tag, postIds] of Object.entries(tagPosts))
 
 for (const [date, postIds] of Object.entries(datePosts))
     genPages(postIds, date.substr(0, 4) + ' 年 ' + date.substr(5, 7).replace(/^0/, '') + ' 月', page => '/' + date.replace('-', '/') + '/' + (page == 1 ? '' : page + '/'))
+
+const feedPath = path.join(blogRenderPath, '/feed/')
+if (!fs.existsSync(feedPath)) fs.mkdirSync(feedPath, { recursive: true })
+fs.writeFileSync(
+    path.join(feedPath, 'index.xml'),
+    rssTemplate({ posts: tagPosts[''].map(x => rssPostTemplate({ post: posts[x] })).join('') }),
+    { encoding: 'utf-8' }
+)
 
 const renderAssetsPath = path.join(blogRenderPath, '/assets/')
 if (!fs.existsSync(renderAssetsPath)) fs.mkdirSync(renderAssetsPath, { recursive: true })
