@@ -24,13 +24,14 @@ function katexRender(text, displayMode) {
 }
 
 var replaceHtmlEntites = (function () {
-    var translate_re = /&(nbsp|amp|quot|lt|gt);/g;
+    var translate_re = /&(nbsp|amp|quot|lt|gt|#39);/g;
     var translate = {
         "nbsp": " ",
         "amp": "&",
         "quot": "\"",
         "lt": "<",
-        "gt": ">"
+        "gt": ">",
+        "#39": "'",
     };
     return function (s) {
         return (s.replace(translate_re, function (_, entity) {
