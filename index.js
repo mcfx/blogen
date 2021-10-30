@@ -3,8 +3,11 @@ const path = require('path')
 const marked = require('marked')
 const katex = require('katex')
 const hljs = require('highlight.js')
+const hljsDefineSolidity = require('highlightjs-solidity');
 const yaml = require('yaml')
 const ejs = require('ejs')
+
+hljsDefineSolidity(hljs);
 
 const {
     createHash
