@@ -50,27 +50,31 @@ function katexMarkdownRender(text, displayMode) {
 }
 
 let markedRenderer = new marked.Renderer()
-markedRenderer.originalParagraph = markedRenderer.paragraph
 markedRenderer.originalImage = markedRenderer.image
 markedRenderer.originalHeading = markedRenderer.heading
 
-markedRenderer.paragraph = function (text) {
-    const isTeXInline = /\$(.*)\$/g.test(text)
-    const isTeXLine = /^\$\$((\s|.)*)\$\$$/.test(text)
+function katexWrapper(originalFunc) {
+    return function (text, ...args) {
+        const isTeXInline = /\$(.*)\$/g.test(text)
+        const isTeXLine = /^\$\$((\s|.)*)\$\$$/.test(text)
 
-    if (!isTeXLine && isTeXInline) {
-        text = text.replace(/(\$([^\$]*)\$)+/g, function (_, x) {
-            if (x.indexOf('<code>') >= 0 || x.indexOf('</code>') >= 0) {
-                return x
-            } else {
-                return '<span class="tex">' + katexMarkdownRender(x, false) + '</span>'
-            }
-        })
-    } else if (isTeXLine) {
-        text = '<div class="tex">' + katexMarkdownRender(text, true) + '</div>'
+        if (!isTeXLine && isTeXInline) {
+            text = text.replace(/(\$([^\$]*)\$)+/g, function (_, x) {
+                if (x.indexOf('<code>') >= 0 || x.indexOf('</code>') >= 0) {
+                    return x
+                } else {
+                    return '<span class="tex">' + katexMarkdownRender(x, false) + '</span>'
+                }
+            })
+        } else if (isTeXLine) {
+            text = '<div class="tex">' + katexMarkdownRender(text, true) + '</div>'
+        }
+        return originalFunc(text, ...args)
     }
-    return this.originalParagraph(text)
 }
+
+for (const funcname of ['paragraph', 'listitem', 'tablecell'])
+    markedRenderer[funcname] = katexWrapper(markedRenderer[funcname])
 
 let images = {}
 
