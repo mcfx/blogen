@@ -52,6 +52,7 @@ function katexMarkdownRender(text, displayMode) {
 let markedRenderer = new marked.Renderer()
 markedRenderer.originalImage = markedRenderer.image
 markedRenderer.originalHeading = markedRenderer.heading
+markedRenderer.originalLink = markedRenderer.link
 
 function katexWrapper(originalFunc) {
     return function (text, ...args) {
@@ -76,7 +77,7 @@ function katexWrapper(originalFunc) {
 for (const funcname of ['paragraph', 'listitem', 'tablecell'])
     markedRenderer[funcname] = katexWrapper(markedRenderer[funcname])
 
-let images = {}
+let assets = {}
 
 markedRenderer.image = function (href, title, text) {
     if (!href.startsWith('https://') && !href.startsWith('http://') && !href.startsWith('//')) {
@@ -85,10 +86,23 @@ markedRenderer.image = function (href, title, text) {
         const hash = createHash('sha256');
         hash.update(fs.readFileSync(imgPath))
         const newHref = '/assets/' + hash.digest('hex') + path.extname(href)
-        images[newHref] = imgPath
+        assets[newHref] = imgPath
         href = newHref
     }
     return this.originalImage(href, title, text)
+}
+
+markedRenderer.link = function (href, title, text) {
+    if (!href.startsWith('https://') && !href.startsWith('http://') && !href.startsWith('//')) {
+        const filePath = path.join(assetsPath, href)
+        console.assert(fs.existsSync(filePath), "file not found: " + href)
+        const hash = createHash('sha256');
+        hash.update(fs.readFileSync(filePath))
+        const newHref = '/assets/' + path.parse(href).name + '-' +hash.digest('hex').substr(0,8) + path.extname(href)
+        assets[newHref] = filePath
+        href = newHref
+    }
+    return this.originalLink(href, title, text)
 }
 
 markedRenderer.heading = function (text, level, raw, slugger) {
@@ -247,7 +261,7 @@ fs.writeFileSync(
 
 const renderAssetsPath = path.join(blogRenderPath, '/assets/')
 if (!fs.existsSync(renderAssetsPath)) fs.mkdirSync(renderAssetsPath, { recursive: true })
-for (const [dst, src] of Object.entries(images))
+for (const [dst, src] of Object.entries(assets))
     fs.copyFileSync(src, path.join(blogRenderPath, dst))
 
 if (config.requireFiles) {
