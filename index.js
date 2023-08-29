@@ -6,6 +6,7 @@ const hljs = require('highlight.js')
 const hljsDefineSolidity = require('highlightjs-solidity');
 const yaml = require('yaml')
 const ejs = require('ejs')
+const { minify } = require('html-minifier')
 
 hljsDefineSolidity(hljs);
 
@@ -50,9 +51,6 @@ function katexMarkdownRender(text, displayMode) {
 }
 
 let markedRenderer = new marked.Renderer()
-markedRenderer.originalImage = markedRenderer.image
-markedRenderer.originalHeading = markedRenderer.heading
-markedRenderer.originalLink = markedRenderer.link
 
 function katexWrapper(originalFunc) {
     return function (text, ...args) {
@@ -79,34 +77,28 @@ for (const funcname of ['paragraph', 'listitem', 'tablecell'])
 
 let assets = {}
 
-markedRenderer.image = function (href, title, text) {
-    if (!href.startsWith('https://') && !href.startsWith('http://') && !href.startsWith('/')) {
-        const imgPath = path.join(assetsPath, href)
-        console.assert(fs.existsSync(imgPath), "image not found: " + href)
-        const hash = createHash('sha256');
-        hash.update(fs.readFileSync(imgPath))
-        const newHref = '/assets/' + hash.digest('hex') + path.extname(href)
-        assets[newHref] = imgPath
-        href = newHref
+function assetWrapper(originalFunc, type, newHrefFunc) {
+    return function (href, title, text) {
+        if (!href.startsWith('https://') && !href.startsWith('http://') && !href.startsWith('/') && !href.startsWith('#')) {
+            const filePath = path.join(assetsPath, href)
+            console.assert(fs.existsSync(filePath), type + " not found: " + href)
+            const hash = createHash('sha256');
+            hash.update(fs.readFileSync(filePath))
+            const newHref = '/assets/' + newHrefFunc(hash, href)
+            assets[newHref] = filePath
+            href = newHref
+        }
+        return originalFunc.call(this, href, title, text)
     }
-    return this.originalImage(href, title, text)
 }
 
-markedRenderer.link = function (href, title, text) {
-    if (!href.startsWith('https://') && !href.startsWith('http://') && !href.startsWith('/') && !href.startsWith('#')) {
-        const filePath = path.join(assetsPath, href)
-        console.assert(fs.existsSync(filePath), "file not found: " + href)
-        const hash = createHash('sha256');
-        hash.update(fs.readFileSync(filePath))
-        const newHref = '/assets/' + path.parse(href).name + '-' + hash.digest('hex').substring(0, 8) + path.extname(href)
-        assets[newHref] = filePath
-        href = newHref
-    }
-    return this.originalLink(href, title, text)
-}
+markedRenderer.image = assetWrapper(markedRenderer.image, 'image', (hash, href) => hash.digest('hex') + path.extname(href))
+markedRenderer.link = assetWrapper(markedRenderer.link, 'file', (hash, href) => path.parse(href).name + '-' + hash.digest('hex').substring(0, 8) + path.extname(href))
 
 markedRenderer.heading = function (text, level, raw, slugger) {
-    return '<h' + level + ' id="' + this.options.headerPrefix + slugger.slug(raw) + '">' +
+    const url = slugger.slug(raw)
+    this.headings.push({ level: level, text: text, url: url })
+    return '<h' + level + ' id="' + url + '">' +
         '<a name="' + text + '">' +
         text +
         '</h' + level + '>\n';
@@ -121,7 +113,12 @@ marked.setOptions({
 })
 
 function render(text) {
-    return marked(text)
+    markedRenderer.headings = []
+    const renderedText = marked(text)
+    return {
+        text: renderedText,
+        headings: markedRenderer.headings,
+    }
 }
 
 const config = yaml.parse(fs.readFileSync(path.join(blogPath, 'source/config.yml'), { encoding: 'utf-8' }))
@@ -168,8 +165,10 @@ fs.readdirSync(postsPath).sort((a, b) => b.localeCompare(a)).forEach(file => {
     const url = ((meta.url || '/posts/' + filename + '/') + '/').replace('//', '/')
     const tags = meta.tags || []
 
-    head = render(head)
-    content = render(content)
+    head = render(head).text
+    const renderResult = render(content)
+    content = renderResult.text
+    headings = renderResult.headings
     tags.forEach(tag => {
         if (typeof (tagPosts[tag]) == "undefined") tagPosts[tag] = []
         tagPosts[tag].push(filename)
@@ -191,6 +190,7 @@ fs.readdirSync(postsPath).sort((a, b) => b.localeCompare(a)).forEach(file => {
         date: date,
         head: head,
         content: content,
+        headings: headings,
         extra: meta.extra || {},
     }
 })
@@ -200,18 +200,39 @@ function getTagUrl(tag) {
     return '/tag/' + tag + '/'
 }
 
-pageTemplate = ejs.compile(fs.readFileSync(path.join(templatesPath, 'page.ejs'), { encoding: 'utf-8' }))
-postTemplate = ejs.compile(fs.readFileSync(path.join(templatesPath, 'post.ejs'), { encoding: 'utf-8' }))
-postsTemplate = ejs.compile(fs.readFileSync(path.join(templatesPath, 'posts.ejs'), { encoding: 'utf-8' }))
-rssPostTemplate = ejs.compile(fs.readFileSync(path.join(templatesPath, 'rss-post.ejs'), { encoding: 'utf-8' }))
-rssTemplate = ejs.compile(fs.readFileSync(path.join(templatesPath, 'rss.ejs'), { encoding: 'utf-8' }))
+function compile(filename) {
+    const filePath = path.join(templatesPath, filename)
+    return ejs.compile(fs.readFileSync(filePath, { encoding: 'utf-8' }), { filename: filePath })
+}
+
+function minifyHtml(html) {
+    return minify(html, {
+        collapseWhitespace: true,
+        removeComments: true,
+        collapseBooleanAttributes: true,
+        useShortDoctype: true,
+        removeEmptyAttributes: true,
+        removeOptionalTags: true,
+        minifyJS: true
+    })
+}
+
+pageTemplate = compile('page.ejs')
+postTemplate = compile('post.ejs')
+tocTemplate = compile('toc.ejs')
+postsTemplate = compile('posts.ejs')
+rssPostTemplate = compile('rss-post.ejs')
+rssTemplate = compile('rss.ejs')
 
 for (const [_, post] of Object.entries(posts)) {
     const pt = path.join(blogRenderPath, post.url)
     if (!fs.existsSync(pt)) fs.mkdirSync(pt, { recursive: true })
+    if (post.content.includes("<p>#! toc")) {
+        post.content = post.content.replace(/<p>#! toc .*<\/p>/g, x => tocTemplate({ headings: post.headings, name: x.substring(10, x.length - 4) }))
+    }
     fs.writeFileSync(
         path.join(pt, 'index.html'),
-        pageTemplate({ title: post.title, body: postTemplate({ post: post, getTagUrl: getTagUrl }) }),
+        minifyHtml(pageTemplate({ title: post.title, body: postTemplate({ post: post, getTagUrl: getTagUrl }) })),
         { encoding: 'utf-8' }
     )
 }
@@ -229,7 +250,7 @@ function genPages(postIds, title, urlCallback) {
         if (!fs.existsSync(pt)) fs.mkdirSync(pt, { recursive: true })
         fs.writeFileSync(
             path.join(pt, 'index.html'),
-            pageTemplate({
+            minifyHtml(pageTemplate({
                 title: title,
                 body: postsTemplate({
                     title: title,
@@ -238,7 +259,7 @@ function genPages(postIds, title, urlCallback) {
                     curPage: i + 1,
                     getPageUrl: page => pageUrls[page - 1],
                 })
-            }),
+            })),
             { encoding: 'utf-8' }
         )
     }
