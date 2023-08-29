@@ -80,7 +80,7 @@ for (const funcname of ['paragraph', 'listitem', 'tablecell'])
 let assets = {}
 
 markedRenderer.image = function (href, title, text) {
-    if (!href.startsWith('https://') && !href.startsWith('http://') && !href.startsWith('//')) {
+    if (!href.startsWith('https://') && !href.startsWith('http://') && !href.startsWith('/')) {
         const imgPath = path.join(assetsPath, href)
         console.assert(fs.existsSync(imgPath), "image not found: " + href)
         const hash = createHash('sha256');
@@ -93,12 +93,12 @@ markedRenderer.image = function (href, title, text) {
 }
 
 markedRenderer.link = function (href, title, text) {
-    if (!href.startsWith('https://') && !href.startsWith('http://') && !href.startsWith('//')) {
+    if (!href.startsWith('https://') && !href.startsWith('http://') && !href.startsWith('/') && !href.startsWith('#')) {
         const filePath = path.join(assetsPath, href)
         console.assert(fs.existsSync(filePath), "file not found: " + href)
         const hash = createHash('sha256');
         hash.update(fs.readFileSync(filePath))
-        const newHref = '/assets/' + path.parse(href).name + '-' +hash.digest('hex').substr(0,8) + path.extname(href)
+        const newHref = '/assets/' + path.parse(href).name + '-' + hash.digest('hex').substring(0, 8) + path.extname(href)
         assets[newHref] = filePath
         href = newHref
     }
@@ -141,29 +141,29 @@ fs.readdirSync(postsPath).sort((a, b) => b.localeCompare(a)).forEach(file => {
     const metaPos = content.indexOf(metaSplitter)
     let meta = ''
     if (metaPos != -1) {
-        meta = content.substr(0, metaPos).split('\n').map((x) => x.startsWith('#! ') ? x.substr(3) : x).join('\n')
-        content = content.substr(metaPos + metaSplitter.length)
+        meta = content.substring(0, metaPos).split('\n').map((x) => x.startsWith('#! ') ? x.substr(3) : x).join('\n')
+        content = content.substring(metaPos + metaSplitter.length)
     } else {
         while (content.startsWith('#! ')) {
             const lfPos = content.indexOf('\n')
-            meta += content.substr(3, lfPos - 3) + '\n'
-            content = content.substr(lfPos + 1)
+            meta += content.substring(3, lfPos) + '\n'
+            content = content.substring(lfPos + 1)
         }
     }
 
     const headPos = content.indexOf(headSplitter)
     let head = ''
     if (headPos != -1) {
-        head = content.substr(0, headPos)
-        content = content.substr(headPos + headSplitter.length)
+        head = content.substring(0, headPos)
+        content = content.substring(headPos + headSplitter.length)
     } else {
         const pos = content.indexOf('\n\n')
-        head = content.substr(0, pos == -1 ? content.length : pos)
+        head = content.substring(0, pos == -1 ? content.length : pos)
     }
     meta = yaml.parse(meta) || {}
 
-    const filename = file.substr(0, file.length - 3)
-    const date = filename.substr(0, 10)
+    const filename = file.substring(0, file.length - 3)
+    const date = filename.substring(0, 10)
     const title = meta.title || filename
     const url = ((meta.url || '/posts/' + filename + '/') + '/').replace('//', '/')
     const tags = meta.tags || []
@@ -176,7 +176,7 @@ fs.readdirSync(postsPath).sort((a, b) => b.localeCompare(a)).forEach(file => {
     })
     tagPosts[''].push(filename)
 
-    const dateMonth = date.substr(0, 7)
+    const dateMonth = date.substring(0, 7)
     if (typeof (datePosts[dateMonth]) == "undefined") datePosts[dateMonth] = []
     datePosts[dateMonth].push(filename)
 
@@ -249,7 +249,7 @@ for (const [tag, postIds] of Object.entries(tagPosts))
     if (tag != '') genPages(postIds, '包含标签 ' + tag + ' 的文章', page => getTagUrl(tag) + (page == 1 ? '' : page + '/'))
 
 for (const [date, postIds] of Object.entries(datePosts))
-    genPages(postIds, date.substr(0, 4) + ' 年 ' + date.substr(5, 7).replace(/^0/, '') + ' 月', page => '/' + date.replace('-', '/') + '/' + (page == 1 ? '' : page + '/'))
+    genPages(postIds, date.substring(0, 4) + ' 年 ' + date.substring(5, 7).replace(/^0/, '') + ' 月', page => '/' + date.replace('-', '/') + '/' + (page == 1 ? '' : page + '/'))
 
 const feedPath = path.join(blogRenderPath, '/feed/')
 if (!fs.existsSync(feedPath)) fs.mkdirSync(feedPath, { recursive: true })
