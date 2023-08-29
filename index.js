@@ -221,7 +221,6 @@ pageTemplate = compile('page.ejs')
 postTemplate = compile('post.ejs')
 tocTemplate = compile('toc.ejs')
 postsTemplate = compile('posts.ejs')
-rssPostTemplate = compile('rss-post.ejs')
 rssTemplate = compile('rss.ejs')
 
 for (const [_, post] of Object.entries(posts)) {
@@ -276,7 +275,7 @@ const feedPath = path.join(blogRenderPath, '/feed/')
 if (!fs.existsSync(feedPath)) fs.mkdirSync(feedPath, { recursive: true })
 fs.writeFileSync(
     path.join(feedPath, 'index.xml'),
-    rssTemplate({ posts: tagPosts[''].map(x => rssPostTemplate({ post: posts[x] })).join('') }),
+    rssTemplate({ posts: tagPosts[''].map(x => posts[x])}),
     { encoding: 'utf-8' }
 )
 
