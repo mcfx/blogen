@@ -4,11 +4,13 @@ const marked = require('marked')
 const katex = require('katex')
 const hljs = require('highlight.js')
 const hljsDefineSolidity = require('highlightjs-solidity');
+const hljsDefineMove = require('./plugins/highlightjs-move.js')
 const yaml = require('yaml')
 const ejs = require('ejs')
 const { minify } = require('html-minifier')
 
 hljsDefineSolidity(hljs);
+hljsDefineMove(hljs);
 
 const {
     createHash
