@@ -49,6 +49,7 @@ var replaceHtmlEntites = (function () {
 function katexMarkdownRender(text, displayMode) {
     text = replaceHtmlEntites(text).replace(/\$/g, "")
     if (displayMode) text = text.replace(/\\\n/g, '\\\\\n')
+    if (text.includes('&')) console.log(text)
     return katexRender(text, displayMode)
 }
 
@@ -273,10 +274,8 @@ for (const [tag, postIds] of Object.entries(tagPosts))
 for (const [date, postIds] of Object.entries(datePosts))
     genPages(postIds, date.substring(0, 4) + ' 年 ' + date.substring(5, 7).replace(/^0/, '') + ' 月', page => '/' + date.replace('-', '/') + '/' + (page == 1 ? '' : page + '/'))
 
-const feedPath = path.join(blogRenderPath, '/feed/')
-if (!fs.existsSync(feedPath)) fs.mkdirSync(feedPath, { recursive: true })
 fs.writeFileSync(
-    path.join(feedPath, 'index.xml'),
+    path.join(blogRenderPath, '/feed.xml'),
     rssTemplate({ posts: tagPosts[''].map(x => posts[x])}),
     { encoding: 'utf-8' }
 )
